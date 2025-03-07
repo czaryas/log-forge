@@ -6,7 +6,7 @@
     "start": "next start",
     "start:worker": "node scripts/start-worker.ts",
     "dev:worker": "npx tsx --watch scripts/startWorker.ts",
-    "workers": "npx tsx -r dotenv/config lib/bullmq/worker.ts dotenv_config_path=.env.local",
+    "workers": "npx tsx -r dotenv/config lib/bullmq/workers.ts dotenv_config_path=.env.local",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:node": "jest --selectProjects=node"

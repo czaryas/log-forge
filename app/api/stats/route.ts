@@ -11,7 +11,6 @@ export async function GET(req:NextRequest, res:NextResponse) {
         if (authError || !userData?.user) {
             redirect('/login')
         }
-        
         const {data, error: queryError} =  await supabase.from('log_stats').select('*').order('processed_at', { ascending: false });
     
         if (queryError) {

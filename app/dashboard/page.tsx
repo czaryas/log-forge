@@ -64,7 +64,7 @@ const STATUS_COLORS = {
     completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle2 className="w-4 h-4" /> },
     failed: { color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" /> }
   };
-export default function DashboardPage() {
+export default async function DashboardPage() {
     const [stats, setStats] = useState<LogStats[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -72,9 +72,18 @@ export default function DashboardPage() {
     const [filter, setFilter] = useState<string>('');
     const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
     const [socket, setSocket] = useState<WebSocket | null>(null);
+    const [events, setEvents] = useState<string[]>([]);
+    const [isConnected, setIsConnected] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
     const supabase = createClient()
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+  
+    if (!user) {
+      return redirect("/sign-in");
+    }
     
     const handleRefresh = () => {
         fetchStats();
@@ -95,7 +104,7 @@ export default function DashboardPage() {
           console.error('Failed to fetch job details:', error);
           toast.error('Failed to fetch job details');
         }
-      };
+    };
     
       // Filter stats based on search input
       const filteredStats = stats.filter(stat => 
@@ -159,10 +168,91 @@ export default function DashboardPage() {
         //   return () => clearInterval(intervalId);
       }, [ fetchStats]);
 
-      useEffect(() => {
+      
 
-       
-      }, [fetchStats, fetchQueueStatus]);
+    useEffect(()=>{
+
+      const supabaseSubscription = supabase
+      .channel('log_stats_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'log_stats',
+        },
+        async (payload) => {
+          // Refresh the entire log stats when there's a change
+          console.log('supabase realtime works')
+          const updatedStats = await fetchStats();
+        }
+      )
+      .subscribe();
+
+      // const eventSource = new EventSource('/api/live-stats');
+      // eventSource.onmessage = (event) => {
+      //   setEvents((prevEvents) => [...prevEvents, event.data]);
+      // };
+
+      // eventSource.addEventListener('completed', (event) => {
+      //   console.log('Received event', event.data);
+      //   toast('event '+ JSON.stringify(event))
+      //   setEvents((prevEvents) => [...prevEvents, `Completed: ${event.data}`]);
+      // });
+  
+      // eventSource.addEventListener('failed', (event) => {
+      //   setEvents((prevEvents) => [...prevEvents, `Failed: ${event.data}`]);
+      // });
+  
+      // eventSource.addEventListener('progress', (event) => {
+      //   setEvents((prevEvents) => [...prevEvents, `Progress: ${event.data}`]);
+      // });
+  
+      // eventSource.onerror = (error) => {
+      //   console.error('SSE error:', error);
+      //   eventSource.close();
+      // };
+
+      const eventSource = new EventSource('/api/live-stats');
+      setIsConnected(true);
+  
+      // Handle connection open
+      eventSource.onopen = () => {
+        setIsConnected(true);
+        console.log('SSE connection established');
+      };
+  
+      // Handle stats event
+      eventSource.addEventListener('stats', (event) => {
+
+        const data = JSON.parse(event.data) as QueueStatus;
+        setQueueStatus(data);
+        setLastUpdated(new Date());
+      });
+  
+      // Handle ping event to keep connection alive
+      eventSource.addEventListener('ping', () => {
+        setIsConnected(true);
+      });
+  
+      // Handle connection error
+      eventSource.onerror = () => {
+        setIsConnected(false);
+        console.error('SSE connection error');
+        
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          eventSource.close();
+          setIsConnected(false);
+        }, 5000);
+      };
+  
+  
+      return () => {
+        supabaseSubscription.unsubscribe();
+        eventSource.close();
+      };
+    },[])
     return (
         <div className='container mx-auto p-6'>
             <h1 className="text-2xl font-bold mb-6">Log Processing Dashboard</h1>
@@ -359,9 +449,9 @@ export default function DashboardPage() {
                   <div>Total Entries:</div>
                   <div>{selectedJob.total_entries.toLocaleString()}</div>
                   <div>Error Count:</div>
-                  <div>{selectedJob.errorCount.toLocaleString()}</div>
+                  <div>{selectedJob.error_count.toLocaleString()}</div>
                   <div>Warning Count:</div>
-                  <div>{selectedJob.warningCount.toLocaleString()}</div>
+                  <div>{selectedJob.warning_count.toLocaleString()}</div>
                 </div>
               </div>
               

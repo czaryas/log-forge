@@ -52,8 +52,9 @@ describe('LogProcessor', ()=>{
     describe('parseLognEntry',()=>{
         test('should correct parse a log entry with timestamp, level & JSON payload', ()=>{
 
-            const logLine = '[2023-07-25T10:15:30.123Z] ERROR Failed to authenticate {"ip":"192.168.1.1","userId":"123"}';
+            const logLine = '[2023-07-25T10:15:30.123Z] ERROR Failed to authenticate breach {"ip":"192.168.1.1","userId":"123"}';
             const result = logProcessor.parseLogEntry(logLine);
+            console.log('results of test', JSON.stringify(result))
             expect(result).toEqual({
                 timestamp: '2023-07-25T10:15:30.123Z',
                 level: 'ERROR',

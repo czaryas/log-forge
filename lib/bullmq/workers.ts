@@ -20,6 +20,7 @@ export const createLogProcessingWorker = (
           // Process the log file
           const stats = await logProcessor.processLogFile(filePath);
           
+          console.log('final stats receivev', JSON.stringify(stats))
           // Store results in database
           await dbService.saveLogStats({
             job_id: fileId,

@@ -31,7 +31,7 @@ const LogUploader: React.FC<LogUploaderProps> = ({ onUploadSuccess }) => {
         }
     }
 
-    const handleUpload = useCallback( async()=>{
+    const handleUpload = useCallback( async(event:any)=>{
         if(!file){
             toast.error('No file selected');
             return;
@@ -59,12 +59,14 @@ const LogUploader: React.FC<LogUploaderProps> = ({ onUploadSuccess }) => {
             }
             const result: UploadResponse = await response.json();
             onUploadSuccess?.(result.jobId);
-            toast.success(result.message);
+            // toast.success(result.message);
             setIsUploading(false);
-            setFile(null);
             if(inoutFileRef.current){
                 inoutFileRef.current.value = '';
-            }
+                console.log('event', event)
+            }            
+            setFile(null);
+
         }catch(error){
             console.error('Upload error:', error);
             toast.error(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -78,6 +80,7 @@ const LogUploader: React.FC<LogUploaderProps> = ({ onUploadSuccess }) => {
         <div className='flex flex-col items-center space-y-4'>
             <div className="flex items-center space-x-4">
                 <input 
+                    ref={inoutFileRef}
                     type='file' 
                     accept='.log,.txt'
                     onChange={handleFileSelect}
@@ -96,8 +99,6 @@ const LogUploader: React.FC<LogUploaderProps> = ({ onUploadSuccess }) => {
             >
                 {isUploading ? 'Uploading...' : 'Upload Log File'}
             </button>
-
-            {file && file.name} -- {isUploading}
         </div>
     )
 }

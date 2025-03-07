@@ -43,5 +43,28 @@ describe('upload logs API', () => {
         expect(logProcessingQueue.add).toHaveBeenCalled();
     })
 
+    it('should handle missing file in the request', async () => {
+        // Arrange
+        const formData = new FormData();
+        // No file attached
+        
+        const request = new NextRequest('http://localhost:3000/api/upload-logs', {
+          method: 'POST',
+          body: formData,
+        });
+    
+        // Act
+        const response = await POST(request, {} as NextResponse);
+        const responseData = await response.json();
+    
+        console.log('responsedata', responseData)
+        // Assert
+        expect(response.status).toBe(200);
+        expect(responseData).toEqual({
+          success: false,
+          message: 'Could not process file check input',
+        });
+      });
+    
   
 })

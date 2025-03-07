@@ -4,22 +4,20 @@ import fs from 'fs';
 import path from 'path';
 import { writeFile } from 'fs/promises';
 import { logProcessingQueue } from "@/lib/bullmq/queue";
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from 'next/navigation'
 
 export async function POST(req:NextRequest, res:NextResponse) {
     
     console.log('Upload-logs API called');
-
-    // const form = formidable({});
     try {
-        // const [fields, files] = await form.parse(await req.formData());
-    // form.parse(req, async(err, fields, files)=>{
-       
-        // const file = files.file as unknown as formidable.File;
-        // if (Array.isArray(files.file)) {
-        //     const file = files.file[0];
-        // } else {
-        //     const file = files.file;
-        // }
+    
+
+        const supabase = await createClient();
+        const { data: userData, error: authError } = await supabase.auth.getUser();
+        if (authError || !userData?.user) {
+            redirect('/login')
+        }
         let formData = await req.formData();
         const file = formData.get("file") as File;
         const fileId = crypto.randomUUID();
@@ -33,7 +31,7 @@ export async function POST(req:NextRequest, res:NextResponse) {
         const job = await logProcessingQueue.add('log-processing-job', {
             fileId,
             filePath,
-            userId: 1,
+            userId: userData.user.id,
             fileName: file.name
         });
         return NextResponse.json({ 
@@ -43,8 +41,8 @@ export async function POST(req:NextRequest, res:NextResponse) {
     }catch(err){
         console.log(err);
             return NextResponse.json({ 
-                jobId: 1, 
-                message: 'File queued for processing' 
+                success: false,
+                message: 'Could not process file check input' 
                 });;
     }
     
