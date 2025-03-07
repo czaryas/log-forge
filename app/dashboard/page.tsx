@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { createClient } from '@/utils/supabase/client'
 import { Input } from '@/components/ui/input';
 import { redirect } from "next/navigation";
-
+// import { LogStats, QueueStatus } from '@/interfaces';
 import { 
     AlertCircle, 
     CheckCircle2, 
@@ -25,7 +25,7 @@ const STATUS_COLORS = {
     processing: 'blue',
     completed: 'green',
     failed: 'red'
-  };
+};
   
   // Define status icons
   const STATUS_ICONS = {
@@ -36,7 +36,7 @@ const STATUS_COLORS = {
   };
 
 
-  interface LogStat {
+  interface LogStats {
     id: string;
     job_id: string;
     file_name: string;
@@ -65,10 +65,10 @@ const STATUS_COLORS = {
     failed: { color: 'bg-red-100 text-red-800', icon: <XCircle className="w-4 h-4" /> }
   };
 export default function DashboardPage() {
-    const [stats, setStats] = useState<LogStat[]>([]);
+    const [stats, setStats] = useState<LogStats[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [refreshing, setRefreshing] = useState<boolean>(false);
-    const [selectedJob, setSelectedJob] = useState<LogStat | null>(null);
+    const [selectedJob, setSelectedJob] = useState<LogStats | null>(null);
     const [filter, setFilter] = useState<string>('');
     const [queueStatus, setQueueStatus] = useState<QueueStatus | null>(null);
     const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -116,7 +116,7 @@ export default function DashboardPage() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Upload failed')
             }
-            const result: LogStat[] = await response.json();
+            const result: LogStats[] = await response.json();
             setStats(result);
             } catch (error) {
             console.error('Failed to fetch stats:', error);
@@ -281,11 +281,11 @@ export default function DashboardPage() {
                             {stat.file_name || 'Unknown'}
                           </TableCell>
                           <TableCell className="text-right">
-                            {stat.total_entries.toLocaleString()}
+                            {stat.total_entries ? stat.total_entries.toLocaleString(): ''}
                           </TableCell>
                           <TableCell className="text-right">
                             <Badge variant={stat.error_count > 0 ? "destructive" : "secondary"}>
-                              {stat.error_count.toLocaleString()}
+                              {stat.error_count ? stat.error_count.toLocaleString() : 0}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -359,9 +359,9 @@ export default function DashboardPage() {
                   <div>Total Entries:</div>
                   <div>{selectedJob.total_entries.toLocaleString()}</div>
                   <div>Error Count:</div>
-                  <div>{selectedJob.error_count.toLocaleString()}</div>
+                  <div>{selectedJob.errorCount.toLocaleString()}</div>
                   <div>Warning Count:</div>
-                  <div>{selectedJob.warning_count.toLocaleString()}</div>
+                  <div>{selectedJob.warningCount.toLocaleString()}</div>
                 </div>
               </div>
               

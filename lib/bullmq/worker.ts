@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { redisConfig } from '../redisConfig';
+import { redisConfig } from '../../config/redisConfig';
 import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv';
 dotenv.config();
@@ -24,7 +24,7 @@ export const logProcessingWorker = new Worker('log-processing-queue', async(job:
         totalEntries: 0,
         errorCount: 0,
         warningCount: 0,
-        ipAddresses: new Set<string>(),
+        ipAddresses: [] as string[],
         keywordMatches: {} as Record<string, number>
       };
     
@@ -48,7 +48,7 @@ export const logProcessingWorker = new Worker('log-processing-queue', async(job:
   
           // Track IP addresses
           if (logEntry.payload?.ip) {
-            stats.ipAddresses.add(logEntry.payload.ip);
+            stats.ipAddresses.push(logEntry.payload.ip);
           }
   
           // Check for keyword matches
