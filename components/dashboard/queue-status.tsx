@@ -40,13 +40,11 @@ const QueueStatusComponent: React.FC = () => {
     const eventSource = new EventSource("/api/live-stats");
     setIsConnected(true);
 
-    // Handle connection open
     eventSource.onopen = () => {
       setIsConnected(true);
       console.log("SSE connection established");
     };
 
-    // Handle stats event
     eventSource.addEventListener("stats", (event) => {
       try {
         const data = JSON.parse(event.data) as QueueStatus;
@@ -58,17 +56,14 @@ const QueueStatusComponent: React.FC = () => {
       }
     });
 
-    // Handle ping event to keep connection alive
     eventSource.addEventListener("ping", () => {
       setIsConnected(true);
     });
 
-    // Handle connection error
     eventSource.onerror = () => {
       setIsConnected(false);
       console.error("SSE connection error");
 
-      // Attempt to reconnect after 5 seconds
       setTimeout(() => {
         eventSource.close();
         setIsConnected(false);

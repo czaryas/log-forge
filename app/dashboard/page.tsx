@@ -1,7 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React, { useState, useEffect } from "react";
-import LogUploader from "@/components/log-uploader";
+import LogUploader from "@/components/LogUploader";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import QueueStatusComponent from "@/components/dashboard/queue-status";

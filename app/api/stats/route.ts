@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 
 
 
-export async function GET(req:NextRequest, res:NextResponse) {
+export async function GET(req:NextRequest) {
     try{
         const supabase = await createClient();
         const { data: userData, error: authError } = await supabase.auth.getUser();

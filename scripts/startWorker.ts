@@ -1,3 +1,3 @@
-import logProcessingWorker from "../lib/bullmq/worker"
+// import logProcessingWorker from "../lib/bullmq/worker"
 
-console.log("Worker started...");
+// console.log("Worker started...");

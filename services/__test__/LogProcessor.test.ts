@@ -1,85 +1,102 @@
 import { LogProcessor } from '../LogProcessor';
-import * as fs from 'fs';
-import * as path from 'path';
-import { promises as fsPromises } from 'fs';
-import { Result } from 'postcss';
-import { EventEmitter } from 'events';
+import { LogEntry } from '@/interfaces';
 
-class MockReadStream extends EventEmitter {
-    on(event:any, callback:any) {
-      super.on(event, callback);
-      return this;
+jest.mock('@supabase/supabase-js', () => ({
+  createClient: jest.fn(() => ({
+    storage: {
+      from: jest.fn().mockReturnThis(),
+      download: jest.fn(),
+      remove: jest.fn()
     }
-    
-    pipe(dest:any) {
-      return dest;
-    }
-    
-    close() {}
-}
-  
-jest.mock('fs', () => ({
-    ...jest.requireActual('fs'),
-    createReadStream: jest.fn().mockImplementation(() => {
-      return new MockReadStream();
-    }),
-    unlinkSync: jest.fn()
+  }))
 }));
-  
-  // Mock readline directly
-  jest.mock('readline', () => ({
-    createInterface: jest.fn().mockImplementation(({ input }) => {
-      const mockInterface = {
-        close: jest.fn(),
-        [Symbol.asyncIterator]: jest.fn().mockImplementation(function* () {
-          // Default empty implementation, will be overridden in tests
-        })
-      };
-      return mockInterface;
-    })
-  }));
 
-describe('LogProcessor', ()=>{
+jest.mock('../../config', () => ({
+  config: {
+    monitorKeywords: ['authentication', 'error', 'memory'],
+    supabaseUrl: 'https://mock-url.supabase.co',
+    supabaseAnonKey: 'mock-key'
+  }
+}));
 
-    let logProcessor: LogProcessor;
-    const mockKeywords = ['error', 'security', 'breach'];
-  
-    beforeEach(() => {
-        logProcessor = new LogProcessor(mockKeywords);
-        jest.clearAllMocks();
+describe('LogProcessor', () => {
+  let logProcessor: LogProcessor;
+  let mockSupabaseClient: any;
+
+  beforeEach(() => {
+    logProcessor = new LogProcessor([]);
+
+  });
+
+  describe('parseLogEntry', () => {
+    it('should correctly parse a standard log entry with timestamp, level and JSON payload', () => {
+      const logLine = '[2023-05-15T14:30:45.123Z] ERROR Failed to authenticate user {"userId": "123", "ip": "192.168.1.1"}';
+      
+      const result: LogEntry = logProcessor.parseLogEntry(logLine);
+      
+      expect(result).toEqual({
+        timestamp: '2023-05-15T14:30:45.123Z',
+        level: 'ERROR',
+        message: logLine,
+        payload: {
+          userId: '123',
+          ip: '192.168.1.1'
+        }
+      });
     });
 
-    describe('parseLognEntry',()=>{
-        test('should correct parse a log entry with timestamp, level & JSON payload', ()=>{
-
-            const logLine = '[2023-07-25T10:15:30.123Z] ERROR Failed to authenticate breach {"ip":"192.168.1.1","userId":"123"}';
-            const result = logProcessor.parseLogEntry(logLine);
-            console.log('results of test', JSON.stringify(result))
-            expect(result).toEqual({
-                timestamp: '2023-07-25T10:15:30.123Z',
-                level: 'ERROR',
-                message: logLine,
-                payload: {
-                  ip: '192.168.1.1',
-                  userId: '123'
-                }
-              });
-        })
-
-        test('should handle log entry without timestamp', ()=>{
-            const logLine = 'ERROR Failed to authenticate {"ip":"192.168.1.1"}';
-            const result = logProcessor.parseLogEntry(logLine);
-            expect(result).toEqual({
-                timestamp: null,
-                level: 'ERROR',
-                message: logLine,
-                payload: {
-                    ip: '192.168.1.1'
-                }
-            })
-        })
+    it('should handle log entries without timestamp', () => {
+      const logLine = 'WARN System running low on memory {"available": "120MB"}';
+      
+      const result = logProcessor.parseLogEntry(logLine);
+      
+      expect(result).toEqual({
+        timestamp: null,
+        level: 'WARN',
+        message: logLine,
+        payload: {
+          available: '120MB'
+        }
+      });
     });
 
-    
-    
-})
+    it('should handle log entries without JSON payload', () => {
+      const logLine = '[2023-05-15T15:00:00.000Z] INFO Server started successfully';
+      
+      const result = logProcessor.parseLogEntry(logLine);
+      
+      expect(result).toEqual({
+        timestamp: '2023-05-15T15:00:00.000Z',
+        level: 'INFO',
+        message: logLine,
+        payload: null
+      });
+    });
+
+    it('should set level to UNKNOWN when no level is found', () => {
+      const logLine = 'This is just some text without proper log format';
+      
+      const result = logProcessor.parseLogEntry(logLine);
+      
+      expect(result).toEqual({
+        timestamp: null,
+        level: 'UNKNOWN',
+        message: logLine,
+        payload: null
+      });
+    });
+
+    it('should handle malformed JSON payloads gracefully', () => {
+      const logLine = '[2023-05-15T16:20:10.456Z] ERROR Database connection failed {"error": "timeout", "attempts": 3,}';
+      
+      const result = logProcessor.parseLogEntry(logLine);
+      
+      expect(result).toEqual({
+        timestamp: '2023-05-15T16:20:10.456Z',
+        level: 'ERROR',
+        message: logLine,
+        payload: null
+      });
+    });
+  });
+});

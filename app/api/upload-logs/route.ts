@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-import { writeFile } from "fs/promises";
 import { logProcessingQueue } from "@/lib/bullmq/queue";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 
-export async function POST(req: NextRequest, res: NextResponse) {
+export async function POST(req: NextRequest, res: any) {
   console.log("Upload-logs API called");
   try {
     const supabase = await createClient();
@@ -25,32 +22,54 @@ export async function POST(req: NextRequest, res: NextResponse) {
     }
 
     const fileId = crypto.randomUUID();
-    const uploadDir = path.join(process.cwd(), "uploads");
-    fs.mkdirSync(uploadDir, { recursive: true });
-    const filePath = path.join(uploadDir, `${fileId}-${file.name}`);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(filePath, buffer);
+    const fileName = `${fileId}-${file.name}`;
+    const buffer = await file.arrayBuffer();
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("logs")
+      .upload(fileName, buffer, {
+        contentType: file.type || 'text/plain',
+        cacheControl: '3600',
+        upsert: false
+
+      });
+      
+    if (uploadError) {
+      console.error("Supabase storage upload error:", uploadError);
+      return NextResponse.json({
+        success: false,
+        message: "Failed to upload file to storage",
+      }, { status: 500 });
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from("logs")
+      .getPublicUrl(fileName);
+      
+    const filePath = urlData.publicUrl;
 
     const fileSizeInBytes = file.size;
     const priority = Math.ceil(Math.log10(fileSizeInBytes));
+    
     const job = await logProcessingQueue.add("log-processing-job", {
       fileId,
-      filePath,
+      filePath, 
       userId: userData.user.id,
       fileName: file.name,
-    },{
-      priority, // Lower number = higher priority (smaller files)
+    }, {
+      priority,
     });
+    
     return NextResponse.json({
       jobId: job.id,
       message: "File queued for processing",
+      fileUrl: filePath,
     });
   } catch (err) {
-    console.log(err);
+    console.error("Error processing upload:", err);
     return NextResponse.json({
       success: false,
       message: "Could not process file check input",
-    });
+    }, { status: 500 });
   }
-
 }
